@@ -1,0 +1,77 @@
+import { PaginatorComponent } from "./PaginatorComponent";
+import { Task, TaskColumnsEnum, type IResGetTodo } from "@/models/todo.model";
+import { useTodoQuery } from "@/query/useTodoQuery";
+import { Checkbox } from "primereact/checkbox";
+import { TodoPageCtx } from "./TodoPage";
+import { use, useContext } from "react";
+import { Link, redirect } from "react-router-dom";
+import { TodoProvider } from "@/query/TodoProvider";
+import { CartContext } from "../Cart/CartCtx";
+import { Button } from "primereact/button";
+import { useSelector } from "react-redux";
+import type { IStoreState } from "@/reduxstore";
+import { DateTimeFormat } from "@/api/DateTimeFormat";
+import { queryClient } from "@/api/queryClient";
+import { QueryTypeEnum } from "@/models/api.model";
+import { httpCallJson, type IOption } from "@/api/commonApi";
+
+export default function TodoList({onTaskClick = (id)=>{}}) {
+    const todoPageCtx = use(TodoPageCtx);
+    const {isTaskPageComponent} = use(TodoProvider?.TodoCtx);
+    const {getTodo, deleteTask , editTask} = useTodoQuery();
+    const {  data: tasks } = getTodo();
+    const { mutate:mDeleteTask   } = deleteTask();
+    const { mutate:meditTask   } = editTask();
+    const { addToCart, removeFromCart} = use(CartContext);
+    const todolistUrl = useSelector<IStoreState>(state=>state.ui.todolistUrl)
+
+
+return (<>
+    <table className="w-full">
+            <tbody>
+                {tasks && tasks?.data?.map((item) =><tr key={item.id}>
+                    <td>
+                       <Checkbox inputId={item.id} onChange={()=>{ item.done = !item.done; meditTask(item)}} checked={item.done} />
+                    </td>
+                    { TaskColumnsEnum.arraylike().map(([position,key])=>(
+                      <td key={key}  className=" p-2">
+                        
+                        { TaskColumnsEnum[key] == TaskColumnsEnum.name ? 
+                            <Link  onClick={()=>onTaskClick(item.id)} to={(todolistUrl ? todolistUrl : "task"+(isTaskPageComponent ? '' : '_fc'))+"/"+item.id}> {item[key]} </Link>  
+                            : 
+                           (TaskColumnsEnum[key] == TaskColumnsEnum.start || TaskColumnsEnum[key] == TaskColumnsEnum.end) ? DateTimeFormat(item[key]) : item[key]
+                        }
+                    </td>
+                    )) }
+                    <td className=" p-2 flex">
+                        <Button icon='pi pi-file-edit' text onClick={(e)=>{ e.preventDefault(); todoPageCtx.setEditedTask(item)}} />
+                        <Button icon='pi pi-times' text onClick={(e)=>{ e.preventDefault();mDeleteTask(item.id) }} />
+                        <Button icon='pi pi-cart-plus' text onClick={(e)=>{ e.preventDefault();addToCart(item) }} />
+                        <Button icon='pi pi-cart-minus' text onClick={(e)=>{ e.preventDefault();removeFromCart(item) }} />
+
+                    </td>
+                </tr>)} 
+            </tbody>
+        </table>
+       
+
+        { tasks && <PaginatorComponent setPage={todoPageCtx.setPage}  />} 
+    </>);
+}
+
+
+export function loader(){
+    queryClient.fetchQuery({
+        queryKey: [QueryTypeEnum.todo, {page:1}],
+        queryFn: (meta) =>   httpCallJson<IResGetTodo>("tasks", { _page: 1 } as IOption).then(res => res ? {...res, data: res.data.map(el=>new Task(el))} : null),
+        staleTime: Infinity,
+    })
+}
+
+export async function actioin({request,params}){
+    const formData = await request.formData();
+    const d = Object.fromEntries(formData);
+    await httpCallJson<IResGetTodo>("tasks","POST", d);
+    await queryClient.invalidateQueries([QueryTypeEnum.todo]);
+    return redirect('../');
+}

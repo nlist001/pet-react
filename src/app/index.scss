@@ -1,0 +1,29 @@
+@import 'primereact/resources/themes/lara-light-blue/theme.css';
+@import 'primeflex/primeflex.css';
+@import 'primeicons/primeicons.css';
+
+@import '@fontsource/roboto/300.css';
+@import '@fontsource/roboto/400.css';
+@import '@fontsource/roboto/500.css';
+@import '@fontsource/roboto/700.css';
+@import "./table.module.scss";
+
+
+
+html {
+    font-size: 14px;
+    background-color: #ccc;
+}
+
+menu {
+    li, a {
+            
+        color:darkslateblue;
+        text-decoration: none;
+        list-style: none ;
+
+        &.active {
+            color: darkviolet;
+        }
+    }
+}
